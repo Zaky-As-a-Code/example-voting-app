@@ -1,21 +1,9 @@
-# version is now using "compose spec"
-# v2 and v3 are now combined!
-# docker-compose v1.27+ required
-
 services:
   vote:
     build: ./vote
-    # use python rather than gunicorn for local dev
-    command: python app.py
+    command: python app.py              #because the dockerfile doesn’t have a Entrypoint for running the application and keep it operating handling the requests - and this will make the Container to start and stop after the process is executed.  This instruction will override the CMD in the Dockerfile to keep the server running and able to handle requests.
     depends_on:
-      redis:
-        condition: service_healthy
-    healthcheck: 
-      test: ["CMD", "curl", "-f", "http://localhost"]
-      interval: 15s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
+     - redis
     volumes:
      - ./vote:/app
     ports:
@@ -26,11 +14,9 @@ services:
 
   result:
     build: ./result
-    # use nodemon rather than node for local dev
-    entrypoint: nodemon server.js
+    entrypoint: nodemon server.js          #The entry point in the docker file is nodes which is not required in this app - so to replace it add the entrypoint here.
     depends_on:
-      db:
-        condition: service_healthy 
+      - db
     volumes:
       - ./result:/app
     ports:
@@ -44,10 +30,7 @@ services:
     build:
       context: ./worker
     depends_on:
-      redis:
-        condition: service_healthy 
-      db:
-        condition: service_healthy 
+      - redis
     networks:
       - back-tier
 
@@ -55,9 +38,6 @@ services:
     image: redis:alpine
     volumes:
       - "./healthchecks:/healthchecks"
-    healthcheck:
-      test: /healthchecks/redis.sh
-      interval: "5s"
     networks:
       - back-tier
 
@@ -69,24 +49,20 @@ services:
     volumes:
       - "db-data:/var/lib/postgresql/data"
       - "./healthchecks:/healthchecks"
-    healthcheck:
-      test: /healthchecks/postgres.sh
-      interval: "5s"
     networks:
       - back-tier
 
-  # this service runs once to seed the database with votes
+  # this service runs once to seed the database with votes relations and tables and sample data
   # it won't run unless you specify the "seed" profile
   # docker compose --profile seed up -d
   seed:
     build: ./seed-data
     profiles: ["seed"]
     depends_on:
-      vote:
-        condition: service_healthy 
+      - vote
     networks:
       - front-tier
-    restart: "no"
+    restart: "no"  #as long as it’s specified as no - Docker compose will run the container one time then once the process is finished it won’t restart it (Not the default behavior of docker compose)
 
 volumes:
   db-data:
