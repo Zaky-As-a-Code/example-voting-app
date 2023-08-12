@@ -1,3 +1,4 @@
+#new version = 3
 services:
   vote:
     build: ./vote
